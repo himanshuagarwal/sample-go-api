@@ -62,6 +62,26 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"Message": "Successfully Created User"})
 }
 
+func UpdateUser(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	var user User
+	err = db.First(&user, params["id"]).Error
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"Message": "No User Found"})
+		return
+	}
+	name := r.FormValue("name")
+	email := r.FormValue("email")
+	user.Name = name
+	user.Email = email
+	err = db.Save(&user).Error
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"Message": "Some Error Occured"})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"Message": "Successfully Updated User"})
+}
+
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	var user User
@@ -87,11 +107,10 @@ func main() {
 	router.HandleFunc("/users", GetUsers).Methods("GET")
 	router.HandleFunc("/user/{id}", GetUser).Methods("GET")
 	router.HandleFunc("/user", CreateUser).Methods("POST")
+	router.HandleFunc("/user/{id}", UpdateUser).Methods("PUT")
 	router.HandleFunc("/user/{id}", DeleteUser).Methods("DELETE")
 
 	//Starting Server
 	log.Printf("Starting web server at port 8000")
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
-
-
