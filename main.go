@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"github.com/gorilla/mux"
@@ -24,22 +25,68 @@ func initDB() {
 		panic(err)
 	}
 
-	defer db.Close()
-
 	db.AutoMigrate(&User{})
+}
+
+func GetUsers(w http.ResponseWriter, r *http.Request) {
+	var users []User
+	db.Find(&users)
+	if len(users) == 0 {
+		json.NewEncoder(w).Encode(map[string]interface{}{"Message": "No User Found"})
+		return
+	}
+	json.NewEncoder(w).Encode(&users)
+}
+
+func GetUser(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	var user User
+	err = db.First(&user, params["id"]).Error
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"Message": "No User Found"})
+		return
+	}
+	json.NewEncoder(w).Encode(&user)
+}
+
+func CreateUser(w http.ResponseWriter, r *http.Request) {
+	var user User
+	name := r.FormValue("name")
+	email := r.FormValue("email")
+	user = User{Name: name, Email: email}
+	err = db.Create(&user).Error
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"Message": "Some Error Occured"})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"Message": "Successfully Created User"})
+}
+
+func DeleteUser(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	var user User
+	db.First(&user, params["id"])
+	err = db.Delete(&user).Error
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{"Message": "Some Error Occured"})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"Message": "Successfully Deleted User"})
 }
 
 func main() {
 	//Intialize Router
 	router := mux.NewRouter()
 
+	defer db.Close()
+	
 	log.Printf("Connecting to database")
 	initDB()
 
 	//Routes
 	router.HandleFunc("/users", GetUsers).Methods("GET")
 	router.HandleFunc("/user/{id}", GetUser).Methods("GET")
-	router.HandleFunc("/user/{id}", CreateUser).Methods("POST")
+	router.HandleFunc("/user", CreateUser).Methods("POST")
 	router.HandleFunc("/user/{id}", DeleteUser).Methods("DELETE")
 
 	//Starting Server
@@ -47,14 +94,4 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8000", router))
 }
 
-func GetUser(w http.ResponseWriter, r *http.Request) {
-}
 
-func GetUsers(w http.ResponseWriter, r *http.Request) {
-}
-
-func CreateUser(w http.ResponseWriter, r *http.Request) {
-}
-
-func DeleteUser(w http.ResponseWriter, r *http.Request) {
-}
